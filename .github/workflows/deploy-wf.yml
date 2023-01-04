@@ -75,7 +75,7 @@ jobs:
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Deploy new lambda
-        run: aws lambda update-function-code --function-name botay_lambda --s3-bucket cdk-hnb659fds-assets-079202211282-us-east-1 --s3-key lm_lambda.zip
+        run: aws lambda update-function-code --function-name link_manager_fastapi --s3-bucket cdk-hnb659fds-assets-079202211282-us-east-1 --s3-key lm_lambda.zip
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_SECRET_ACCESS_KEY_ID }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_DEFAULT_REGION }}
