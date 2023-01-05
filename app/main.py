@@ -21,10 +21,12 @@ async def home():
 @app.put('/add_link')
 async def add_link(put_link_request: PutLinkRequest):
     item = {
+        'PK': f'USER#{put_link_request.user_id}',
+        'SK': f'ULINK#{uuid4().hex}',
         'user_id': put_link_request.user_id,
         'title': put_link_request.title,
         'url': put_link_request.url,
-        'link_id': f'link_{uuid4().hex}'
+        'link_id': f'{uuid4().hex}'
     }
 
     table = _get_table()
@@ -67,5 +69,5 @@ async def update_link(put_link_request: PutLinkRequest):
     
 
 def _get_table():
-    table_name = os.environ.get('LINKS_TABLE_NAME')
+    table_name = os.environ.get('TABLE_NAME')
     return boto3.resource('dynamodb').Table(table_name)
