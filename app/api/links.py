@@ -1,9 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from uuid import uuid4
 from datetime import datetime
+try:
+    from boto3.dynamodb.conditions import Key
+except:
+    pass
 
 
-from ..db import _get_table, Key
+
+from ..db import _get_table
 from ..models.link_mod import PutLinkRequest
 
 router = APIRouter()
