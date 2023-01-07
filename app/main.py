@@ -1,12 +1,20 @@
 from fastapi import FastAPI
 from mangum import Mangum
 
-from .api import links
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except:
+    pass
+
+from .api import links, users
 
 app = FastAPI()
 handler = Mangum(app)
 
 app.include_router(links.router)
+app.include_router(users.router)
 
 
 @app.get('/')
