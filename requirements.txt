@@ -4,6 +4,5 @@ python-multipart
 python-dotenv
 cryptography
 python-jose
-bcrypt
+py-bcrypt
 passlib
-passlib[bcrypt]
