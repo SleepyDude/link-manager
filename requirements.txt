@@ -6,3 +6,4 @@ cryptography
 python-jose
 bcrypt
 passlib
+passlib[bcrypt]
