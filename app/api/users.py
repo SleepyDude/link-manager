@@ -61,6 +61,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @router.post('/register')
 async def register(user_reg: UserReg):
+    print('got register info:', user_reg)
     user = get_db_user(user_reg.username)
     if user is not None:
         raise HTTPException(status_code=409, detail="Such username is already used")
