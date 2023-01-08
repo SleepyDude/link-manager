@@ -3,4 +3,4 @@ mangum
 python-multipart
 python-dotenv
 python-jose
-bcrypt
+bcrypt==3.2.2
