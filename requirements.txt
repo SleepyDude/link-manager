@@ -2,7 +2,5 @@ fastapi
 mangum
 python-multipart
 python-dotenv
-cryptography
 python-jose
 bcrypt
-passlib
