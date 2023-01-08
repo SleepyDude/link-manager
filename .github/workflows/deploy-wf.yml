@@ -39,8 +39,6 @@ jobs:
     - name: Create archive of dependencies
       run: |
         set -eux pipefail
-        pip install -t lib -r requirements.txt
-        (cd lib; zip ../lm_lambda.zip -r .)
         zip lm_lambda.zip -ur app/.
         rm -rf lib
     - name: Upload zip file artifact
