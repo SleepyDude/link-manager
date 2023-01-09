@@ -1,18 +1,26 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from typing import List
 from uuid import uuid4
 from datetime import datetime
-try:
-    from boto3.dynamodb.conditions import Key
-except:
-    pass
 
-
-
-from ..db import _get_table
-from ..models.link_mod import PutLinkRequest
+from ..models.link_mod import PutLinkRequest, LinkList
+from ..models.user_mod import UserInp
+from .users import get_current_user
+from ..db import get_user_link_lists
 
 router = APIRouter()
 
+@router.get('/get_my_lists')
+async def get_lists(cur_user: UserInp = Depends(get_current_user)):
+    linklist: List[LinkList] = get_user_link_lists(cur_user.username)
+    return linklist
+
+
+
+
+
+
+'''
 # TODO made dependaple of access token (login)
 @router.put('/add_link')
 async def add_link(put_link_request: PutLinkRequest):
@@ -31,7 +39,7 @@ async def add_link(put_link_request: PutLinkRequest):
     table.put_item(Item=item)
     return {'link': item}
 
-'''
+
 @router.get('/get_link/{link_id}')
 async def get_link(link_id: str):
     table = _get_table()

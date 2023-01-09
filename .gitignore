@@ -5,3 +5,4 @@ venv
 *.zip
 *.sh
 python
+experiments
