@@ -1,15 +1,13 @@
-from pydantic import BaseModel, root_validator
+from pydantic import BaseModel, root_validator, EmailStr, validator
 from typing import Optional
 
 class UserInp(BaseModel):
     username: str
-    email: Optional[str]
 
 class UserReg(BaseModel):
     username: str
     password: str
     password_confirm: str
-    email: Optional[str]
 
     @root_validator
     def check_password_match(cls, values):
@@ -17,11 +15,19 @@ class UserReg(BaseModel):
         if pw1 != pw2:
             raise ValueError('passwords do not match')
         return values
+    
+    class Config:
+        schema_extra = {
+            'example': {
+                'username': 'JohnDoe',
+                'password': 'qwerty',
+                'password_confirm': 'qwerty',
+            }
+        }
 
 class UserInDB(BaseModel):
     Username: str
     Hashpass: str
-    Email: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str
@@ -29,3 +35,19 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class ConfirmDelete(BaseModel):
+    deletion_confirm: str
+
+    @validator('deletion_confirm')
+    def confirm_deletion(cls, value):
+        if value != 'delete':
+            raise ValueError('You should confirm deletion by typing `delete`')
+        return value
+    
+    class Config:
+        schema_extra = {
+            'example': {
+                'deletion_confirm': 'delete',
+            }
+        }
