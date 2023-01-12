@@ -1,24 +1,27 @@
-from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from fastapi import APIRouter, HTTPException, Depends, Query
+from typing import List, Optional
 from uuid import uuid4
 from datetime import datetime
 
-from ..models.link_mod import PutLinkRequest, LinkList
-from ..models.user_mod import UserInp
+from ..models.link_mod import PutLinkRequest, Link, LinkListParams, LinkInp
+from ..models.user_mod import User
 from .users import get_current_user
-from ..db import get_user_link_lists
+from ..db import db_get_links_by_user, db_put_link
 
 router = APIRouter()
 
-@router.get('/get_my_lists')
-async def get_lists(cur_user: UserInp = Depends(get_current_user)):
-    linklist: List[LinkList] = get_user_link_lists(cur_user.username)
+@router.get('/get_my_links')
+async def get_links(query: LinkListParams = Depends(), 
+    cur_user: User = Depends(get_current_user)
+):
+    linklist: List[Link] = db_get_links_by_user(
+        cur_user.username, query.limit, query.offset)
     return linklist
 
-
-
-
-
+@router.post('/add_link')
+async def add_link(link_inp: LinkInp, cur_user: User = Depends(get_current_user)):
+    l = db_put_link(username=cur_user.username, link_inp=link_inp)
+    return {'Message': l.dict()}
 
 '''
 # TODO made dependaple of access token (login)
