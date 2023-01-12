@@ -1,11 +1,13 @@
 from pydantic import BaseModel, root_validator, EmailStr, validator
 from typing import Optional
 
-class UserInp(BaseModel):
+class User(BaseModel):
     username: str
 
-class UserReg(BaseModel):
-    username: str
+class UserInDB(User):
+    hashpass: str
+
+class UserReg(User):
     password: str
     password_confirm: str
 
@@ -25,9 +27,9 @@ class UserReg(BaseModel):
             }
         }
 
-class UserInDB(BaseModel):
-    Username: str
-    Hashpass: str
+'''
+    TOKENS
+'''
 
 class Token(BaseModel):
     access_token: str

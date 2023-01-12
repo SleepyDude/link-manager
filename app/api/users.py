@@ -6,12 +6,14 @@ from datetime import timedelta, datetime
 import os
 
 from ..models.user_mod import (
-    UserInp, UserReg, UserInDB,
+    User, UserInDB, UserReg,
     Token, TokenData,
     ConfirmDelete,
 )
 from ..utils import verify_password, get_password_hash
-from ..db import get_db_user, put_db_user, db_delete_user
+from ..db import (
+    db_get_user, db_put_user, db_delete_user
+)
 
 JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
 ALGORITHM = 'HS256'
@@ -21,13 +23,11 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 router = APIRouter()
 
-
-
-def authenticate_user(username: str, password: str):
-    user = get_db_user(username)
+def authenticate_user(username: str, password: str) -> Optional[UserInDB]:
+    user = db_get_user(username)
     if user is None:
         return None
-    if not verify_password(password, user.Hashpass):
+    if not verify_password(password, user.hashpass):
         return None
     return user
 
@@ -41,7 +41,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInp:
+async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail='Invalid authentication credentials',
@@ -55,12 +55,10 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> UserInp:
         token_data = TokenData(username=username)
     except JWTError:
         raise credentials_exception
-    user = get_db_user(token_data.username)
+    user = db_get_user(token_data.username)
     if user is None:
         raise credentials_exception
-    return UserInp(
-        username=user.Username,
-    )
+    return User(**user.dict())
 
 @router.post('/token', response_model=Token)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -73,7 +71,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         )
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={'sub': user.Username},
+        data={'sub': user.username},
         expires_delta=access_token_expires
     )
     return {
@@ -83,20 +81,20 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
 
 @router.post('/register')
 async def register(user_reg: UserReg):
-    user = get_db_user(user_reg.username)
+    user = db_get_user(user_reg.username)
     if user is not None:
         raise HTTPException(status_code=409, detail="Such username is already used")
     # not found - continue registration
     hash_pass = get_password_hash(user_reg.password)
     user_in_db = UserInDB(
-        Username=user_reg.username,
-        Hashpass=hash_pass,
+        username=user_reg.username,
+        hashpass=hash_pass,
     )
-    put_db_user(user_in_db)
-    out_user = UserInp(**user_reg.dict())
+    db_put_user(user_in_db)
+    out_user = User(**user_reg.dict())
     return {'Message': 'Registration successfull!', 'User': out_user.dict()}
 
 @router.delete('/delete_me')
-async def delete_my_account(del_conf: ConfirmDelete, cur_user: UserInp = Depends(get_current_user)):
+async def delete_my_account(_: ConfirmDelete, cur_user: User = Depends(get_current_user)):
     db_delete_user(cur_user.username)
     return {'Message': f'User `{cur_user.username}` was successfully deleted'}
