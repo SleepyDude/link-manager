@@ -4,9 +4,13 @@ from pydantic import parse_obj_as
 from pprint import pprint as pp
 from datetime import datetime
 from decimal import Decimal
+import urllib.parse
 
 try:
     import boto3
+    from boto3.dynamodb.conditions import Key
+    from boto3.dynamodb import conditions
+    from botocore.exceptions import ClientError
 except:
     pass
 
@@ -36,17 +40,17 @@ def _get_table():
 
 def db_put_link(username: str, link_inp: LinkInp) -> Optional[Link]:
     table = _get_table()
-    timestamp = Decimal(f'{datetime.utcnow().timestamp():.4f}')
-    created = datetime.fromtimestamp(timestamp).isoformat()
-
+    # timestamp = Decimal(f'{datetime.utcnow().timestamp():.4f}')
+    created = datetime.utcnow().isoformat(timespec='seconds')
     link_dict = link_inp.dict()
     link_dict.update({
         'PK': f'USER#{f_k(username)}',
-        'SK': f'LINK#{timestamp}',
+        'SK': f'LINK#{created}',
         'created': created,
-        'priority_num': timestamp,
         'icon': None,
         'tags': [],
+        'GSI1PK': f'USER#{f_k(username)}',
+        'GSI1SK': f'LINK#{link_inp.url}',
     })
     resp = table.put_item(Item=link_dict)
     check_resp('db_put_link', resp)
@@ -60,28 +64,142 @@ def db_get_links_by_user(username: str,
     datetime from which we should pick items
     By default the function pick all items from the last one
 
-    `offset` - priority number (see priority number of other links)
-    `limit` - number of items to get
+    `offset` - utc datetime in ISO format with seconds precision.
+    `2023-01-13T10:32:24` for example
+    `limit` - max number of items to get
     """
+    SK_end = f'LINK#{offset}'
+    if not offset:
+        SK_end = 'LINL#'
     kwargs = dict()
     kwargs['ScanIndexForward'] = False
     kwargs['KeyConditionExpression'] =\
         'PK = :PK_val AND SK BETWEEN :SK_start AND :SK_end'
     kwargs['ExpressionAttributeValues'] = {
         ':PK_val': f'USER#{f_k(username)}',
-        ':SK_start': f'LINK#{offset}',
-        ':SK_end': 'USER#'
+        ':SK_start': f'LINK#',
+        ':SK_end': SK_end,
     }
     if limit:
         kwargs['Limit'] = limit
-
-    print('have the following kwargs:', kwargs)
     table = _get_table()
     resp = table.query(**kwargs)
     check_resp('db_get_links_by_user', resp)
     items = resp['Items']
     return parse_obj_as(List[Link], items)
 
+def db_get_link_by_url(username: str, url: str):
+    table = _get_table()
+    resp = table.query(
+        IndexName='GSI1-index',
+        KeyConditionExpression='GSI1PK = :PK_val AND begins_with (GSI1SK, :SK_begins)',
+        ExpressionAttributeValues={
+            ':PK_val': f'USER#{f_k(username)}',
+            ':SK_begins': f'LINK#{url}'
+        }
+    )
+    check_resp('db_get_link_by_url', resp)
+    items = resp['Items']
+    return parse_obj_as(List[Link], items)
+
+def db_get_link_by_id(username: str, id: str):
+    '''
+    `id` - timestamp in ISO format with seconds precision.
+
+    `2023-01-13T10:32:24` for example
+    '''
+    table = _get_table()
+    resp = table.get_item(Key={
+        'PK': f'USER#{f_k(username)}',
+        'SK': f'LINK#{id}',
+    })
+    check_resp('db_get_link_by_id', resp)
+    item = resp.get('Item')
+    if item is None:
+        return None
+    return parse_obj_as(Link, item)
+
+'''
+    TAGS
+'''
+
+def _db_add_tag_to_link(username: str, link_timestamp: str, tagname: str):
+    table = _get_table()
+    try:
+        table.update_item(
+            Key={
+                'PK': f'USER#{f_k(username)}',
+                'SK': f'LINK#{link_timestamp}',
+            },
+            UpdateExpression="SET #t = list_append(#t, :tag)",
+            ExpressionAttributeNames={
+                '#t': 'tags',
+            },
+            ExpressionAttributeValues={
+                ':tag': [tagname],
+                ':tagval': tagname,
+            },
+            ConditionExpression='not(contains(tags, :tagval))',
+        )
+    except ClientError as err:
+        if err.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            # raise ValueError(f'The tag {tagname} already exists') from err
+            return {'Message': f'The tag {tagname} already exists'}
+        else:
+            raise err
+    return None
+
+def _db_delete_tag_from_link(username: str, link_timestamp: str, tagname: str):
+    table = _get_table()
+    # firstly get tags then delete by id
+    resp = table.get_item(
+        Key={
+            'PK': f'USER#{f_k(username)}',
+            'SK': f'LINK#{link_timestamp}',
+        },
+        AttributesToGet=['tags'],
+    )
+    check_resp('_db_delete_tag_from_link(part1)', resp)
+    tags: list = resp['Item']['tags']
+    try:
+        index = tags.index(tagname)
+    except ValueError:
+        return None
+    # let's delete tag by id
+    try:
+        table.update_item(
+            Key={
+                'PK': f'USER#{f_k(username)}',
+                'SK': f'LINK#{link_timestamp}',
+            },
+            UpdateExpression=f"REMOVE #t[{index}]",
+            ExpressionAttributeNames={
+                '#t': 'tags',
+            },
+            ConditionExpression=conditions.Attr("PK").exists(),
+        )
+    except ClientError as err:
+        if err.response['Error']['Code'] == 'ConditionalCheckFailedException':
+            # raise ValueError(f'The tag {tagname} already exists') from err
+            return {'Message': 'Link with this timestamp is not exist'}
+        else:
+            raise err
+    return None
+
+def db_put_tag(username: str, link_timestamp: str, tagname: str):
+    table = _get_table()
+    # find existing link firstly
+    link = db_get_link_by_id(username, link_timestamp)
+    if not link:
+        print('put to not existing Link')
+        return None
+    return None
+
+    # table.put_item(Item={
+    #     'PK': f'USER#{f_k(username)}',
+    #     'SK': 
+
+    # })
 
 # def put_db_link_list(username: str, listname: str):
 #     listname_escape = listname.replace(' ', '_')
