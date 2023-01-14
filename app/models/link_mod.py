@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional, List
 
 class Link(BaseModel):
-    created: Optional[datetime] = None
+    created: Optional[str] = None
     title: Optional[str] = None
     url: str
     icon: Optional[str] = None
