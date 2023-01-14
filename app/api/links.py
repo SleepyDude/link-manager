@@ -9,7 +9,7 @@ from .users import get_current_user
 from ..db import (
     db_get_links_by_user, db_put_link,
     db_get_link_by_url, db_get_link_by_id,
-    _db_add_tag_to_link, _db_delete_tag_from_link
+    db_put_tag, _db_delete_tag_from_link
 )
 
 router = APIRouter()
@@ -47,11 +47,12 @@ async def add_link(link_inp: LinkInp, cur_user: User = Depends(get_current_user)
 async def add_tag(link_timestamp: str, tagname: str,
     cur_user: User = Depends(get_current_user)
 ):
-    err_msg = _db_add_tag_to_link(username=cur_user.username,
-        link_timestamp=link_timestamp, tagname=tagname)
-    if err_msg is not None:
-        return err_msg
-    return {'Message': 'Added tag'}
+    try:
+        db_put_tag(username=cur_user.username,
+            link_timestamp=link_timestamp, tagname=tagname)
+    except Exception as e:
+        return {'Message': 'Cant add a tag', 'details': str(e)}
+    return {'Message': 'Tag added'}
 
 @router.delete('/remove_tag')
 async def remove_tag(link_timestamp: str, tagname: str,

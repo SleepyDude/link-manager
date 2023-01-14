@@ -186,14 +186,91 @@ def _db_delete_tag_from_link(username: str, link_timestamp: str, tagname: str):
             raise err
     return None
 
-def db_put_tag(username: str, link_timestamp: str, tagname: str):
+def _db_add_tag_to_tags(username: str, tagname: str, link: Link):
+    '''
+    link doesn't contain a new tag <tagname> yet
+    '''
+    # У линка уже есть какие-то теги, например ['a', 'b', 'c']
+    # Значит существуют объекты, содержащие копию данного линка
+    # С ключами:
+    #   PK=USER#<username> SK=TAG#<a>#<link.created> 
+    #   PK=USER#<username> SK=TAG#<b>#<link.created> 
+    #   PK=USER#<username> SK=TAG#<c>#<link.created>
+    # Им то и нужно добавить новый тег <tagname>
     table = _get_table()
+    # print('link:', link)
+    for tag in link.tags:
+        try:
+            table.update_item(
+                Key={
+                    'PK': f'USER#{f_k(username)}',
+                    'SK': f'TAG#{tag}#{link.created}',
+                },
+                UpdateExpression="SET #t = list_append(#t, :l_tag)",
+                ExpressionAttributeNames={
+                    '#t': 'tags',
+                },
+                ExpressionAttributeValues={
+                    ':tag': tagname,
+                    ':l_tag': [tagname],
+                },
+                ConditionExpression='not(contains(tags, :tag))',
+            )
+        except ClientError as err:
+            if err.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                raise ValueError(f'The tag {tagname} already exists in tag entity') from err
+            else:
+                raise err
+
+def _db_create_tag_entity(username: str, tagname: str, link: Link):
+    '''
+    `link` entity contains old tags, so we should add a new one <tagname>
+
+    TAG# entity should be able to provide the following queries:
+    - Find all links for specific tags
+    - Find all tags for specific link
+    '''
+    link.tags.append(tagname) # add a new tag
+    table = _get_table()
+    link_dict = link.dict()
+    link_dict.update({
+        'PK': f'USER#{f_k(username)}',
+        'SK': f'TAG#{tagname}#{link.created}',
+        # 'GSI1PK': f'LINK#{link.created}#{tagname}',
+        # 'GSI1SK': f'LINK#{link.created}#{tagname}', # For reverse query
+    })
+    resp = table.put_item(Item=link_dict)
+    check_resp('_db_create_tag_entity', resp)
+    return None
+    return Link(**link_dict)
+
+def db_put_tag(username: str, link_timestamp: str, tagname: str):
     # find existing link firstly
     link = db_get_link_by_id(username, link_timestamp)
     if not link:
-        print('put to not existing Link')
-        return None
+        raise ValueError('Link with this timestamp does not exist')
+    # put tag to link entity
+    _db_add_tag_to_link(username, link_timestamp, tagname)
+    # put tag to TAG entities
+    _db_add_tag_to_tags(username, tagname, link)
+    # create tag entity
+    _db_create_tag_entity(username, tagname, link)
     return None
+
+def db_get_links_by_tag(username: str, tagname: str):
+    table = _get_table()
+
+    resp = table.query(
+        IndexName='GSI1-index',
+        KeyConditionExpression='GSI1PK = :PK_val AND begins_with (GSI1SK, :SK_begins)',
+        ExpressionAttributeValues={
+            ':PK_val': f'USER#{f_k(username)}',
+            ':SK_begins': f'LINK#'
+        }
+    )
+    check_resp('db_get_link_by_url', resp)
+    items = resp['Items']
+
 
     # table.put_item(Item={
     #     'PK': f'USER#{f_k(username)}',
