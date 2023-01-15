@@ -149,9 +149,9 @@ def _db_add_tag_to_link(username: str, link_timestamp: str, tagname: str):
             raise err
     return None
 
-def _db_delete_tag_from_link(username: str, link_timestamp: str, tagname: str):
+def db_delete_tag(username: str, link_timestamp: str, tagname: str):
     table = _get_table()
-    # firstly get tags then delete by id
+    # firstly get tags to find id (because it's only possible to delete by id)
     resp = table.get_item(
         Key={
             'PK': f'USER#{f_k(username)}',
@@ -164,8 +164,8 @@ def _db_delete_tag_from_link(username: str, link_timestamp: str, tagname: str):
     try:
         index = tags.index(tagname)
     except ValueError:
-        return None
-    # let's delete tag by id
+        return None # no need to delete
+    # let's delete tag by id from link entity
     try:
         table.update_item(
             Key={
@@ -180,11 +180,36 @@ def _db_delete_tag_from_link(username: str, link_timestamp: str, tagname: str):
         )
     except ClientError as err:
         if err.response['Error']['Code'] == 'ConditionalCheckFailedException':
-            # raise ValueError(f'The tag {tagname} already exists') from err
-            return {'Message': 'Link with this timestamp is not exist'}
+            raise ValueError(f'The tag {tagname} already exists') from err
         else:
             raise err
-    return None
+    
+    # let's delete tag by id from all tags entities
+    for tag in tags:
+        if tag == tagname: # skip if its tag we want to delete
+            continue
+        try:
+            table.update_item(
+                Key={
+                    'PK': f'USER#{f_k(username)}',
+                    'SK': f'TAG#{tag}#{link_timestamp}',
+                },
+                UpdateExpression=f"REMOVE #t[{index}]",
+                ExpressionAttributeNames={
+                    '#t': 'tags',
+                },
+                ConditionExpression=conditions.Attr("PK").exists(),
+            )
+        except ClientError as err:
+            if err.response['Error']['Code'] == 'ConditionalCheckFailedException':
+                raise ValueError(f'The tag {tagname} already exists') from err
+            else:
+                raise err
+    # lets delete a tag entity now
+    table.delete_item(Key={
+        'PK': f'USER#{f_k(username)}',
+        'SK': f'TAG#{tagname}#{link_timestamp}',
+    })
 
 def _db_add_tag_to_tags(username: str, tagname: str, link: Link):
     '''

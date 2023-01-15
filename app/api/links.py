@@ -9,7 +9,7 @@ from .users import get_current_user
 from ..db import (
     db_get_links_by_user, db_put_link,
     db_get_link_by_url, db_get_link_by_id,
-    db_put_tag, _db_delete_tag_from_link
+    db_put_tag, db_delete_tag
 )
 
 router = APIRouter()
@@ -58,7 +58,7 @@ async def add_tag(link_timestamp: str, tagname: str,
 async def remove_tag(link_timestamp: str, tagname: str,
     cur_user: User = Depends(get_current_user)
 ):
-    _db_delete_tag_from_link(cur_user.username,
+    db_delete_tag(cur_user.username,
         link_timestamp=link_timestamp, tagname=tagname)
 
 '''
