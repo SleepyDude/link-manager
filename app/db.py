@@ -211,6 +211,31 @@ def db_delete_tag(username: str, link_timestamp: str, tagname: str):
         'SK': f'TAG#{tagname}#{link_timestamp}',
     })
 
+def db_delete_link(username: str, link_timestamp: str):
+    table = _get_table()
+    # find the link by link_timestamp
+    resp = table.get_item(
+        Key={
+            'PK': f'USER#{f_k(username)}',
+            'SK': f'LINK#{link_timestamp}',
+        },
+        AttributesToGet=['tags'],
+    )
+    check_resp('db_delete_link', resp)
+    tags: list = resp['Item']['tags']
+    # delete link
+    table.delete_item(Key={
+        'PK': f'USER#{f_k(username)}',
+        'SK': f'LINK#{link_timestamp}', 
+    })
+    # delete tag entities
+    with table.batch_writer() as batch:
+        for tag in tags:
+            batch.delete_item(Key={
+                "PK": f'USER#{f_k(username)}',
+                "SK": f'TAG#{tag}#{link_timestamp}'
+            })
+
 def _db_add_tag_to_tags(username: str, tagname: str, link: Link):
     '''
     link doesn't contain a new tag <tagname> yet
@@ -267,7 +292,6 @@ def _db_create_tag_entity(username: str, tagname: str, link: Link):
     resp = table.put_item(Item=link_dict)
     check_resp('_db_create_tag_entity', resp)
     return None
-    return Link(**link_dict)
 
 def db_put_tag(username: str, link_timestamp: str, tagname: str):
     # find existing link firstly
@@ -286,76 +310,15 @@ def db_get_links_by_tag(username: str, tagname: str):
     table = _get_table()
 
     resp = table.query(
-        IndexName='GSI1-index',
-        KeyConditionExpression='GSI1PK = :PK_val AND begins_with (GSI1SK, :SK_begins)',
+        KeyConditionExpression='PK = :PK_val AND begins_with (SK, :SK_begins)',
         ExpressionAttributeValues={
             ':PK_val': f'USER#{f_k(username)}',
-            ':SK_begins': f'LINK#'
+            ':SK_begins': f'TAG#{tagname}#'
         }
     )
-    check_resp('db_get_link_by_url', resp)
+    check_resp('db_get_link_by_tag', resp)
     items = resp['Items']
-
-
-    # table.put_item(Item={
-    #     'PK': f'USER#{f_k(username)}',
-    #     'SK': 
-
-    # })
-
-# def put_db_link_list(username: str, listname: str):
-#     listname_escape = listname.replace(' ', '_')
-#     table = _get_table()
-#     resp = table.put_item(Item={
-#         'PK': f'USER#{username.lower()}',
-#         'SK': f'LLIST#{listname_escape}',
-#         'Type': 'LinkList',
-#         'Listname': listname,
-#         'LastAdd': None,
-#         'Elements': 0,
-#     })
-#     if resp['ResponseMetadata']['HTTPStatusCode'] != 200:
-#         raise Exception(f"Can't put <link list> for some reason, details: {resp}")
-#     return None
-
-# def get_user_link_lists(username: str):
-#     table = _get_table()
-#     resp = table.query(
-#         KeyConditionExpression='PK = :PK_val AND begins_with (SK, :SK_begin)',
-#         ExpressionAttributeValues={
-#             ':PK_val': f'USER#{username.lower()}',
-#             ':SK_begin': f'LLIST#'
-#         }
-#     )
-#     if resp['ResponseMetadata']['HTTPStatusCode'] != 200:
-#         raise Exception('Something wrong with <get_user_link_lists> with resp:'
-#         , resp)
-#     items = resp['Items']
-#     return parse_obj_as(List[LinkList], items)
-
-# def get_user_rules(username: str):
-#     '''
-#     Get all link list rules of user
-#     '''
-#     table = _get_table()
-#     resp = table.query(
-#         KeyConditionExpression='PK = :PK_val',
-#         ExpressionAttributeValues={
-#             ':PK_val': f'ULRULE#{username.lower()}'
-#         }
-#     )
-
-# def get_list_rules(username: str):
-#     '''
-#     Get all rules attached to a list
-#     '''
-#     table = _get_table()
-#     resp = table.query(
-#         KeyConditionExpression='PK = :PK_val',
-#         ExpressionAttributeValues={
-#             ':PK_val': f'ULRULE#{username.lower()}'
-#         }
-#     )
+    return parse_obj_as(List[Link], items)
 
 """
     USERS
