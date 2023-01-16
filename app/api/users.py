@@ -60,7 +60,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         raise credentials_exception
     return User(**user.dict())
 
-@router.post('/token', response_model=Token)
+@router.post('/token', response_model=Token, tags=['Users'])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
     user: UserInDB = authenticate_user(form_data.username, form_data.password)
     if user is None:
@@ -79,7 +79,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         'token_type': 'Bearer',
     }
 
-@router.post('/register')
+@router.post('/register', tags=['Users'])
 async def register(user_reg: UserReg):
     user = db_get_user(user_reg.username)
     if user is not None:
@@ -94,7 +94,7 @@ async def register(user_reg: UserReg):
     out_user = User(**user_reg.dict())
     return {'Message': 'Registration successfull!', 'User': out_user.dict()}
 
-@router.delete('/delete_me')
+@router.delete('/delete_me', tags=['Users'])
 async def delete_my_account(_: ConfirmDelete, cur_user: User = Depends(get_current_user)):
     db_delete_user(cur_user.username)
     return {'Message': f'User `{cur_user.username}` was successfully deleted'}

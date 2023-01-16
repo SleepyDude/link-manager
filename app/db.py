@@ -211,6 +211,31 @@ def db_delete_tag(username: str, link_timestamp: str, tagname: str):
         'SK': f'TAG#{tagname}#{link_timestamp}',
     })
 
+def db_delete_link(username: str, link_timestamp: str):
+    table = _get_table()
+    # find the link by link_timestamp
+    resp = table.get_item(
+        Key={
+            'PK': f'USER#{f_k(username)}',
+            'SK': f'LINK#{link_timestamp}',
+        },
+        AttributesToGet=['tags'],
+    )
+    check_resp('db_delete_link', resp)
+    tags: list = resp['Item']['tags']
+    # delete link
+    table.delete_item(Key={
+        'PK': f'USER#{f_k(username)}',
+        'SK': f'LINK#{link_timestamp}', 
+    })
+    # delete tag entities
+    with table.batch_writer() as batch:
+        for tag in tags:
+            batch.delete_item(Key={
+                "PK": f'USER#{f_k(username)}',
+                "SK": f'TAG#{tag}#{link_timestamp}'
+            })
+
 def _db_add_tag_to_tags(username: str, tagname: str, link: Link):
     '''
     link doesn't contain a new tag <tagname> yet
