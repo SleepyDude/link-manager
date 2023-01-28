@@ -9,6 +9,10 @@ from ..models.user_mod import (
     User, UserInDB, UserReg,
     Token, TokenData,
     ConfirmDelete,
+    RegResp,
+)
+from ..models.uni_mod import (
+    HTTPError
 )
 from ..utils import verify_password, get_password_hash
 from ..db import (
@@ -79,11 +83,18 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         'token_type': 'Bearer',
     }
 
-@router.post('/register', tags=['Users'])
+@router.post('/register', tags=['Users'], responses={
+        409: {'model': HTTPError},
+        200: {'model': RegResp}
+    })
 async def register(user_reg: UserReg):
     user = db_get_user(user_reg.username)
     if user is not None:
-        raise HTTPException(status_code=409, detail="Such username is already used")
+        raise HTTPException(status_code=409, detail={
+            'msg': 'Such username is already used',
+            'loc': 'username',
+            'type': '409 Conflict',
+        })
     # not found - continue registration
     hash_pass = get_password_hash(user_reg.password)
     user_in_db = UserInDB(
@@ -92,7 +103,11 @@ async def register(user_reg: UserReg):
     )
     db_put_user(user_in_db)
     out_user = User(**user_reg.dict())
-    return {'Message': 'Registration successfull!', 'User': out_user.dict()}
+    return RegResp(
+        success=True,
+        msg='Registration successfull.',
+        user=out_user
+    )
 
 @router.delete('/delete_me', tags=['Users'])
 async def delete_my_account(_: ConfirmDelete, cur_user: User = Depends(get_current_user)):

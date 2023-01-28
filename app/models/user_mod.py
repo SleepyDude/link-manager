@@ -3,6 +3,7 @@ from typing import Optional
 
 class User(BaseModel):
     username: str
+    email: Optional[str]
 
 class UserInDB(User):
     hashpass: str
@@ -53,3 +54,8 @@ class ConfirmDelete(BaseModel):
                 'deletion_confirm': 'delete',
             }
         }
+
+class RegResp(BaseModel):
+    success: bool
+    msg: str
+    user: User
