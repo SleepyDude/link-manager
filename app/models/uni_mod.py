@@ -1,18 +1,12 @@
 from pydantic import BaseModel
-from pydantic.generics import GenericModel
-from typing import Generic, Optional, TypeVar
 
-# Generic types
-
-DataT = TypeVar('DataT')
-
-class DetailInfo(GenericModel, Generic[DataT]):
+class DetailInfo(BaseModel):
     msg: str = ''
-    type: DataT
+    type: str = ''
     loc: str = ''
 
-class HTTPError(GenericModel, Generic[DataT]):
-    detail: DetailInfo[DataT]
+class HTTPError(BaseModel):
+    detail: DetailInfo
 
     class Config:
         schema_extra = {
