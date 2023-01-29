@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import jwt, JWTError
-from typing import Optional
+from typing import Optional, Literal
 from datetime import timedelta, datetime
 import os
 
@@ -84,7 +84,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     }
 
 @router.post('/register', tags=['Users'], responses={
-        409: {'model': HTTPError},
+        409: {'model': HTTPError[Literal['username']]}, # the error could be only in username
         200: {'model': RegResp}
     })
 async def register(user_reg: UserReg):
