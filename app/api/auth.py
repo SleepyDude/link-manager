@@ -82,7 +82,7 @@ async def refresh_token(response: Response, ref_token: str = Depends(RefreshWith
     user = db_get_user(username)
     if user is None:
         raise credentials_exception
-    access_token = create_access_token(user.username)
+    access_token, _ = create_access_token(user.username)
     response.set_cookie(
         key="access_token",
         value=f"Bearer {access_token}",

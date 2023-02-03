@@ -38,6 +38,7 @@ def decode_subject(token: str, refresh=False) -> dict:
     key = JWT_REFRESH_SECRET_KEY if refresh else JWT_SECRET_KEY
     try:
         res = jwt.decode(token, key, algorithms=[ALGORITHM])
-    except JWTError:
+    except JWTError as e:
+        print('JWTError:', e)
         res = {}
     return res
