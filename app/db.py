@@ -16,7 +16,7 @@ except:
 
 from .models.user_mod import UserInDB, User
 from .models.link_mod import Link, LinkListParams, LinkInp, LinkInDB
-from .utils import filter_keyword as f_k
+from .utils.crypto import filter_keyword as f_k
 
 """
     HELPERS

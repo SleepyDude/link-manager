@@ -10,12 +10,16 @@ try:
 except:
     pass
 
-from .api import links, users
+from .api import links, users, auth
 
 tags_metadata = [
     {
+        "name": "Auth",
+        "description": "Methods for getting and refresh tokens",
+    },
+    {
         "name": "Users",
-        "description": "Operations with users. The **login** logic is also here.",
+        "description": "Operations with users.",
     },
     {
         "name": "Links",
@@ -30,6 +34,7 @@ tags_metadata = [
 app = FastAPI(openapi_tags=tags_metadata)
 handler = Mangum(app)
 
+app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(links.router)
 

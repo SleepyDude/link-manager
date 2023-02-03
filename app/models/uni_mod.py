@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from typing import Dict, Any, Optional
 
 class DetailInfo(BaseModel):
     msg: str = ''
@@ -7,6 +8,8 @@ class DetailInfo(BaseModel):
 
 class HTTPError(BaseModel):
     detail: DetailInfo
+    status_code: int
+    headers: Optional[Dict[str, Any]]
 
     class Config:
         schema_extra = {
